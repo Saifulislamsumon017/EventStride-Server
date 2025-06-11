@@ -29,8 +29,24 @@ async function run() {
     // Marathons Api
 
     app.get('/marathons', async (req, res) => {
-      const result = await marathonsCollection.find().toArray();
-      res.send(result);
+      const sortOrder = req.query.sort === 'asc' ? 1 : -1;
+      const limit = parseInt(req.query.limit) || 100;
+
+      const marathons = await marathonsCollection
+        .find()
+        .sort({ createdAt: sortOrder })
+        .limit(limit)
+        .toArray();
+
+      res.send(marathons);
+    });
+
+    app.get('/marathons/:id', async (req, res) => {
+      const id = req.params.id;
+      const marathon = await marathonsCollection.findOne({
+        _id: new ObjectId(id),
+      });
+      res.send(marathon);
     });
 
     await client.db('admin').command({ ping: 1 });
