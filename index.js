@@ -22,9 +22,16 @@ async function run() {
   try {
     await client.connect();
 
+    // marathonsCollection
     const marathonsCollection = client
       .db('marathonsManagement')
       .collection('marathons');
+
+    // registationcollection
+
+    const registrationsCollection = client
+      .db('marathonsManagement')
+      .collection('registrations');
 
     // Marathons Api
 
@@ -34,7 +41,7 @@ async function run() {
 
       const marathons = await marathonsCollection
         .find()
-        .sort({ createdAt: sortOrder }) // Sort by createdAt
+        .sort({ createdAt: sortOrder })
         .limit(limit)
         .toArray();
 
@@ -45,6 +52,14 @@ async function run() {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await marathonsCollection.findOne(query);
+      res.send(result);
+    });
+
+    // Registrations API
+
+    app.post('/registarion', async (req, res) => {
+      const registrationData = req.body;
+      const result = await registrationsCollection.insertOne(registrationData);
       res.send(result);
     });
 
