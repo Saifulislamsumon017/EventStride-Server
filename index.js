@@ -55,9 +55,18 @@ async function run() {
       res.send(result);
     });
 
-    // Registrations API
+    // Registrations  All API
 
-    app.post('/registarion', async (req, res) => {
+    app.get('/registration', async (req, res) => {
+      const email = req.query.email;
+      const query = {
+        applicantEmail: email,
+      };
+      const result = await registrationsCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.post('/registration', async (req, res) => {
       const registrationData = req.body;
       const result = await registrationsCollection.insertOne(registrationData);
       res.send(result);
