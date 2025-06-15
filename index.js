@@ -38,9 +38,15 @@ async function run() {
     app.get('/marathons', async (req, res) => {
       const sortOrder = req.query.sort === 'asc' ? 1 : -1;
       const limit = parseInt(req.query.limit) || 100;
+      const email = req.query.email;
+
+      const filter = {};
+      if (email) {
+        filter.userEmail = email;
+      }
 
       const marathons = await marathonsCollection
-        .find()
+        .find(filter)
         .sort({ createdAt: sortOrder })
         .limit(limit)
         .toArray();
@@ -55,13 +61,23 @@ async function run() {
       res.send(result);
     });
 
+    app.post('/marathons', async (req, res) => {
+      console.log('Received POST /marathons');
+      const addMarathon = req.body;
+      const result = await marathonsCollection.insertOne(addMarathon);
+      res.send(result);
+    });
     // Registrations  All API
 
     app.get('/registration', async (req, res) => {
       const email = req.query.email;
+      const search = req.query.search || '';
+
       const query = {
         applicantEmail: email,
+        marathonTitle: { $regex: search, $options: 'i' },
       };
+
       const result = await registrationsCollection.find(query).toArray();
       res.send(result);
     });
