@@ -67,6 +67,23 @@ async function run() {
       const result = await marathonsCollection.insertOne(addMarathon);
       res.send(result);
     });
+    app.delete('/marathons/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await marathonsCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    app.put('/marathons/:id', async (req, res) => {
+      const id = req.params.id;
+      const updatedData = req.body;
+      const result = await marathonsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updatedData }
+      );
+      res.send(result);
+    });
+
     // Registrations  All API
 
     app.get('/registration', async (req, res) => {
@@ -85,6 +102,24 @@ async function run() {
     app.post('/registration', async (req, res) => {
       const registrationData = req.body;
       const result = await registrationsCollection.insertOne(registrationData);
+      res.send(result);
+    });
+
+    app.put('/registration/:id', async (req, res) => {
+      const id = req.params.id;
+      const updatedData = req.body;
+      const result = await registrationsCollection.updateOne(
+        { _id: new ObjectId(id) },
+        { $set: updatedData }
+      );
+      res.send(result);
+    });
+
+    // DELETE registration
+    app.delete('/registration/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await registrationsCollection.deleteOne(query);
       res.send(result);
     });
 
