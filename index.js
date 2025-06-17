@@ -8,6 +8,7 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
+// MongoDB URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.skjlfzl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 const client = new MongoClient(uri, {
@@ -22,18 +23,15 @@ async function run() {
   try {
     await client.connect();
 
-    // marathonsCollection
     const marathonsCollection = client
       .db('marathonsManagement')
       .collection('marathons');
-
-    // registationcollection
 
     const registrationsCollection = client
       .db('marathonsManagement')
       .collection('registrations');
 
-    // Marathons Api
+    // ========== Marathon APIs ==========
 
     app.get('/marathons', async (req, res) => {
       const sortOrder = req.query.sort === 'asc' ? 1 : -1;
@@ -62,15 +60,8 @@ async function run() {
     });
 
     app.post('/marathons', async (req, res) => {
-      console.log('Received POST /marathons');
       const addMarathon = req.body;
       const result = await marathonsCollection.insertOne(addMarathon);
-      res.send(result);
-    });
-    app.delete('/marathons/:id', async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await marathonsCollection.deleteOne(query);
       res.send(result);
     });
 
@@ -84,7 +75,14 @@ async function run() {
       res.send(result);
     });
 
-    // Registrations  All API
+    app.delete('/marathons/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await marathonsCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // ========== Registration APIs ==========
 
     app.get('/registration', async (req, res) => {
       const email = req.query.email;
@@ -100,8 +98,17 @@ async function run() {
     });
 
     app.post('/registration', async (req, res) => {
-      const registrationData = req.body;
-      const result = await registrationsCollection.insertOne(registrationData);
+      const data = req.body;
+
+      const result = await registrationsCollection.insertOne(data);
+
+      if (result.insertedId) {
+        await marathonsCollection.updateOne(
+          { _id: new ObjectId(data.marathonId) },
+          { $inc: { totalRegistrationCount: 1 } }
+        );
+      }
+
       res.send(result);
     });
 
@@ -115,7 +122,6 @@ async function run() {
       res.send(result);
     });
 
-    // DELETE registration
     app.delete('/registration/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -123,21 +129,42 @@ async function run() {
       res.send(result);
     });
 
+    // ========== NEW: Registration Count for a Marathon ==========
+
+    app.get('/registrations/count', async (req, res) => {
+      const marathonId = req.query.marathonId;
+
+      if (!marathonId) {
+        return res.status(400).json({ error: 'marathonId is required' });
+      }
+
+      try {
+        const count = await registrationsCollection.countDocuments({
+          marathonId: marathonId,
+        });
+
+        res.json({ count });
+      } catch (error) {
+        console.error('Error counting registrations:', error);
+        res.status(500).json({ error: 'Failed to fetch count' });
+      }
+    });
+
+    // ========== MongoDB Ping Check ==========
     await client.db('admin').command({ ping: 1 });
-    console.log(
-      'Pinged your deployment. You successfully connected to MongoDB!'
-    );
+    console.log('✅ Connected to MongoDB successfully!');
   } finally {
+    // Optional cleanup logic here if needed
   }
 }
 run().catch(console.dir);
 
+// ========== Root Route ==========
 app.get('/', (req, res) => {
-  res.send(
-    '🎉 Welcome to EventStride Server! Your Marathon Management System is up and running.'
-  );
+  res.send('🎉 Welcome to EventStride Server!');
 });
 
+// ========== Start Server ==========
 app.listen(port, () => {
   console.log(`✅ EventStride server is running on port ${port}`);
 });
