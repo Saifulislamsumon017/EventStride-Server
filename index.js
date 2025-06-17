@@ -1,12 +1,34 @@
 const express = require('express');
 const cors = require('cors');
 const app = express();
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(
+  cors({
+    origin: ['https://eventstride-auth.web.app'],
+    credentials: true,
+  })
+);
 app.use(express.json());
+app.use(cookieParser());
+
+// ========== VerifyToken ==========
+
+const verifyToken = (req, res, next) => {
+  const token = req?.cookies?.token;
+
+  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+    if (err) return res.status(403).json({ message: 'Forbidden' });
+    req.user = decoded;
+    next();
+  });
+};
 
 // MongoDB URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.skjlfzl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -31,9 +53,26 @@ async function run() {
       .db('marathonsManagement')
       .collection('registrations');
 
+    // ========== JWT Token APIs ==========
+
+    app.post('/jwt', async (req, res) => {
+      const userInfo = req.body;
+
+      const token = jwt.sign(userInfo, process.env.JWT_SECRET, {
+        expiresIn: '7d',
+      });
+
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: false,
+      });
+
+      res.send({ success: true });
+    });
+
     // ========== Marathon APIs ==========
 
-    app.get('/marathons', async (req, res) => {
+    app.get('/marathons', verifyToken, async (req, res) => {
       const sortOrder = req.query.sort === 'asc' ? 1 : -1;
       const limit = parseInt(req.query.limit) || 100;
       const email = req.query.email;
@@ -59,7 +98,7 @@ async function run() {
       res.send(result);
     });
 
-    app.post('/marathons', async (req, res) => {
+    app.post('/marathons', verifyToken, async (req, res) => {
       const addMarathon = req.body;
       const result = await marathonsCollection.insertOne(addMarathon);
       res.send(result);
@@ -84,7 +123,7 @@ async function run() {
 
     // ========== Registration APIs ==========
 
-    app.get('/registration', async (req, res) => {
+    app.get('/registration', verifyToken, async (req, res) => {
       const email = req.query.email;
       const search = req.query.search || '';
 
