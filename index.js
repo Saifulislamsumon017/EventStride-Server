@@ -7,12 +7,6 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 3000;
 
-// app.use(
-//   cors({
-//     origin: ['https://eventstride-auth.web.app', 'http://localhost:5173'],
-//     credentials: true,
-//   })
-// );
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
