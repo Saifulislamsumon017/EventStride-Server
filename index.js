@@ -7,28 +7,29 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config();
 const port = process.env.PORT || 3000;
 
-app.use(
-  cors({
-    origin: ['https://eventstride-auth.web.app'],
-    credentials: true,
-  })
-);
+// app.use(
+//   cors({
+//     origin: ['https://eventstride-auth.web.app', 'http://localhost:5173'],
+//     credentials: true,
+//   })
+// );
+app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
 
 // ========== VerifyToken ==========
 
-const verifyToken = (req, res, next) => {
-  const token = req?.cookies?.token;
+// const verifyToken = (req, res, next) => {
+//   const token = req?.cookies?.token;
 
-  if (!token) return res.status(401).json({ message: 'Unauthorized' });
+//   if (!token) return res.status(401).json({ message: 'Unauthorized' });
 
-  jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
-    if (err) return res.status(403).json({ message: 'Forbidden' });
-    req.user = decoded;
-    next();
-  });
-};
+//   jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+//     if (err) return res.status(403).json({ message: 'Forbidden' });
+//     req.user = decoded;
+//     next();
+//   });
+// };
 
 // MongoDB URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.skjlfzl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
@@ -43,7 +44,7 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const marathonsCollection = client
       .db('marathonsManagement')
@@ -55,24 +56,24 @@ async function run() {
 
     // ========== JWT Token APIs ==========
 
-    app.post('/jwt', async (req, res) => {
-      const userInfo = req.body;
+    // app.post('/jwt', async (req, res) => {
+    //   const userInfo = req.body;
 
-      const token = jwt.sign(userInfo, process.env.JWT_SECRET, {
-        expiresIn: '7d',
-      });
+    //   const token = jwt.sign(userInfo, process.env.JWT_SECRET, {
+    //     expiresIn: '7d',
+    //   });
 
-      res.cookie('token', token, {
-        httpOnly: true,
-        secure: false,
-      });
+    //   res.cookie('token', token, {
+    //     httpOnly: true,
+    //     secure: false,
+    //   });
 
-      res.send({ success: true });
-    });
+    //   res.send({ success: true });
+    // });
 
     // ========== Marathon APIs ==========
 
-    app.get('/marathons', verifyToken, async (req, res) => {
+    app.get('/marathons', async (req, res) => {
       const sortOrder = req.query.sort === 'asc' ? 1 : -1;
       const limit = parseInt(req.query.limit) || 100;
       const email = req.query.email;
@@ -98,7 +99,7 @@ async function run() {
       res.send(result);
     });
 
-    app.post('/marathons', verifyToken, async (req, res) => {
+    app.post('/marathons', async (req, res) => {
       const addMarathon = req.body;
       const result = await marathonsCollection.insertOne(addMarathon);
       res.send(result);
@@ -123,7 +124,7 @@ async function run() {
 
     // ========== Registration APIs ==========
 
-    app.get('/registration', verifyToken, async (req, res) => {
+    app.get('/registration', async (req, res) => {
       const email = req.query.email;
       const search = req.query.search || '';
 
@@ -190,7 +191,7 @@ async function run() {
     });
 
     // ========== MongoDB Ping Check ==========
-    await client.db('admin').command({ ping: 1 });
+    // await client.db('admin').command({ ping: 1 });
     console.log('✅ Connected to MongoDB successfully!');
   } finally {
     // Optional cleanup logic here if needed
