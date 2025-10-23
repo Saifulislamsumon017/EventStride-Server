@@ -44,6 +44,10 @@ async function run() {
       .db('marathonsManagement')
       .collection('marathons');
 
+    const organizersCollection = client
+      .db('marathonsManagement')
+      .collection('organizers');
+
     const registrationsCollection = client
       .db('marathonsManagement')
       .collection('registrations');
@@ -114,6 +118,25 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const result = await marathonsCollection.deleteOne(query);
       res.send(result);
+    });
+
+    // Get top organizers
+
+    app.get('/organizers', async (req, res) => {
+      try {
+        // Fetch all organizers, optionally limit to top 8
+        const topOrganizers = await organizersCollection
+          .find({})
+          .sort({ totalMarathons: -1 }) // Sort by totalMarathons descending
+          .limit(8)
+          .toArray();
+
+        console.log('Top organizers fetched:', topOrganizers); // Debug
+        res.send(topOrganizers);
+      } catch (error) {
+        console.error('Error fetching organizers:', error);
+        res.status(500).send({ error: 'Failed to fetch organizers' });
+      }
     });
 
     // ========== Registration APIs ==========
