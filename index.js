@@ -70,25 +70,48 @@ async function run() {
     // });
 
     // ========== Marathon APIs ==========
-
+    // GET /marathons?sort=desc&limit=8&upcoming=true/false
     app.get('/marathons', async (req, res) => {
-      const sortOrder = req.query.sort === 'asc' ? 1 : -1;
-      const limit = parseInt(req.query.limit) || 100;
-      const email = req.query.email;
+      try {
+        const sortOrder = req.query.sort === 'asc' ? 1 : -1;
+        const limit = parseInt(req.query.limit) || 100;
+        const upcomingFilter = req.query.upcoming;
 
-      const filter = {};
-      if (email) {
-        filter.userEmail = email;
+        const filter = {};
+        if (upcomingFilter === 'true') filter.upcoming = true;
+        if (upcomingFilter === 'false') filter.upcoming = false;
+
+        const marathons = await marathonsCollection
+          .find(filter)
+          .sort({ marathonStartDate: sortOrder })
+          .limit(limit)
+          .toArray();
+
+        res.json(marathons);
+      } catch (err) {
+        console.error('Error fetching marathons:', err);
+        res.status(500).json({ message: 'Internal Server Error' });
       }
-
-      const marathons = await marathonsCollection
-        .find(filter)
-        .sort({ createdAt: sortOrder })
-        .limit(limit)
-        .toArray();
-
-      res.send(marathons);
     });
+
+    // app.get('/marathons', async (req, res) => {
+    //   const sortOrder = req.query.sort === 'asc' ? 1 : -1;
+    //   const limit = parseInt(req.query.limit) || 100;
+    //   const email = req.query.email;
+
+    //   const filter = {};
+    //   if (email) {
+    //     filter.userEmail = email;
+    //   }
+
+    //   const marathons = await marathonsCollection
+    //     .find(filter)
+    //     .sort({ createdAt: sortOrder })
+    //     .limit(limit)
+    //     .toArray();
+
+    //   res.send(marathons);
+    // });
 
     app.get('/marathons/:id', async (req, res) => {
       const id = req.params.id;
@@ -118,6 +141,27 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const result = await marathonsCollection.deleteOne(query);
       res.send(result);
+    });
+
+    // Upcoming Marathons (only events with upcoming=true)
+    app.get('/upcoming-marathons', async (req, res) => {
+      try {
+        const today = new Date().toISOString().split('T')[0];
+
+        const upcomingMarathons = await marathonsCollection
+          .find({
+            upcoming: true,
+            marathonStartDate: { $gte: today },
+          })
+          .sort({ marathonStartDate: 1 })
+          .limit(8)
+          .toArray();
+
+        res.json(upcomingMarathons);
+      } catch (err) {
+        console.error('Error fetching upcoming marathons:', err);
+        res.status(500).json({ message: 'Internal Server Error' });
+      }
     });
 
     // Get top organizers
@@ -204,6 +248,58 @@ async function run() {
       } catch (error) {
         console.error('Error counting registrations:', error);
         res.status(500).json({ error: 'Failed to fetch count' });
+      }
+    });
+
+    // Dashboard Overview with Aggregation
+    app.get('/dashboard/overview', async (req, res) => {
+      try {
+        // Total marathons
+        const totalMarathons = await marathonsCollection.countDocuments({});
+        // Upcoming marathons
+        const upcomingMarathons = await marathonsCollection.countDocuments({
+          upcoming: true,
+        });
+        // Total companies
+        const totalCompanies = await organizersCollection.countDocuments({});
+        // Total registrations
+        const totalRegistrations = await registrationsCollection.countDocuments(
+          {}
+        );
+
+        // Aggregation: Get upcoming marathons with registration count
+        const upcomingMarathonsList = await marathonsCollection
+          .aggregate([
+            { $match: { upcoming: true } },
+            {
+              $lookup: {
+                from: 'registrations',
+                localField: '_id',
+                foreignField: 'marathonId',
+                as: 'registrations',
+              },
+            },
+            {
+              $addFields: {
+                registrationCount: { $size: '$registrations' },
+              },
+            },
+            { $project: { registrations: 0 } },
+            { $sort: { marathonStartDate: 1 } },
+            { $limit: 6 },
+          ])
+          .toArray();
+
+        res.json({
+          totalMarathons,
+          upcomingMarathons,
+          totalCompanies,
+          totalRegistrations,
+          upcomingMarathonsList,
+        });
+      } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Internal Server Error' });
       }
     });
 
